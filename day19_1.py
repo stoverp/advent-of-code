@@ -14,11 +14,15 @@ class Resource(Enum):
 class Global(object):
   total_branches = 0
   cache = dict()
+  cache_hits = 0
+  cache_misses = 0
 
   @staticmethod
   def reset():
     Global.total_branches = 0
     Global.cache = dict()
+    Global.cache_hits = 0
+    Global.cache_misses = 0
 
 
 class Robot(object):
@@ -47,11 +51,11 @@ def buildable_robot_types(blueprint, collection):
 
 
 def update_cache(robots, collection, minutes_remaining, choices, collected):
-  Global.cache[(frozenset(robots.items()), frozenset(collection.items()), minutes_remaining)] = (choices, collected)
+  Global.cache[(robots, collection, minutes_remaining)] = (choices, collected)
 
 
 def read_cache(robots, collection, minutes_remaining):
-  key = (frozenset(robots.items()), frozenset(collection.items()), minutes_remaining)
+  key = (robots, collection, minutes_remaining)
   if key in Global.cache:
     return Global.cache[key]
   return None
@@ -91,10 +95,11 @@ def run(blueprint, robots, collection, total_minutes, minutes_remaining):
     if Global.total_branches % 1000000 == 0:
       print(f"branches so far: {Global.total_branches}")
     return [], collection
-  # cache_result = read_cache(robots, collection, minutes_remaining)
-  # if cache_result:
-  #   cached_choices, collected = cache_result
-  #   return cached_choices, collected
+  cache_result = read_cache(robots, collection, minutes_remaining)
+  if cache_result:
+    Global.cache_hits += 1
+    return cache_result
+  Global.cache_misses += 1
   buildable_types = buildable_robot_types(blueprint, collection)
   best_choices = []
   best_collected = init_resource_amounts()
@@ -107,7 +112,7 @@ def run(blueprint, robots, collection, total_minutes, minutes_remaining):
     if greater_than(collected, best_collected):
       best_choices = [build_resource_type] + choices
       best_collected = collected
-  # update_cache(robots, collection, minutes_remaining, best_choices, best_collected)
+  update_cache(robots, collection, minutes_remaining, best_choices, best_collected)
   return best_choices, best_collected
 
 
@@ -168,6 +173,8 @@ def main(file, minutes):
       print_choices(choices, blueprint, minutes)
       print(f"\ntotal branches examined: {Global.total_branches}")
       print(f"choices: {choices}")
+      print(f"cache hits: {Global.cache_hits}")
+      print(f"cache misses: {Global.cache_misses}")
       return
 
 
@@ -179,23 +186,3 @@ if __name__ == "__main__":
   start_time = time.time()
   main(args.file, args.minutes)
   print("--- COMPLETED IN %s SECONDS ---" % (time.time() - start_time))
-
-  # t = (1, 1, 1, 1)
-  # print(update_amounts(t, Resource.CLAY, 2))
-  #
-  # t = (1, 1, 1, 3)
-  # print(update_amounts(t, Resource.GEODE, -2))
-  #
-  # t1 = (1, 2, 3, 4)
-  # t2 = (4, 3, 2, 1)
-  # print(add_amounts(t1, t2))
-  #
-  # t1 = (4, 3, 2, 1)
-  # t2 = (1, 2, 2, 4)
-  # print(subtract_amounts(t1, t2))
-  #
-  # print(greater_than((0, 0, 0, 0), (0, 0, 1, 0)))
-  # print(greater_than((0, 0, 0, 1), (0, 0, 1, 0)))
-  # print(greater_than((1, 0, 0, 0), (1, 0, 0, 0)))
-  # print(greater_than((1, 0, 0, 0), (0, 0, 0, 0)))
-  # print(greater_than((0, 0, 0, 1), (25, 53, 16, 0)))
