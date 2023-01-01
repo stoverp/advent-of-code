@@ -51,11 +51,11 @@ def buildable_robot_types(blueprint, collection):
 
 
 def update_cache(robots, collection, minutes_remaining, choices, collected):
-  Global.cache[(robots, collection, minutes_remaining)] = (choices, collected)
+  Global.cache[(frozenset(robots), frozenset(collection), minutes_remaining)] = (choices, collected)
 
 
 def read_cache(robots, collection, minutes_remaining):
-  key = (robots, collection, minutes_remaining)
+  key = (frozenset(robots), frozenset(collection), minutes_remaining)
   if key in Global.cache:
     return Global.cache[key]
   return None
@@ -82,11 +82,13 @@ def update_amounts(amounts, resource, value):
 
 
 def add_amounts(amounts1, amounts2, factor=1):
-  return tuple(a1 + (a2 * factor) for a1, a2 in zip(amounts1, amounts2))
+  # return tuple(a1 + (a2 * factor) for a1, a2 in zip(amounts1, amounts2))
+  for resource in Resource:
+    amounts1[resource.value] += amounts2[resource.value] * factor
 
 
 def subtract_amounts(amounts1, amounts2):
-  return add_amounts(amounts1, amounts2, factor=-1)
+  add_amounts(amounts1, amounts2, factor=-1)
 
 
 def run(blueprint, robots, collection, total_minutes, minutes_remaining):
@@ -103,21 +105,27 @@ def run(blueprint, robots, collection, total_minutes, minutes_remaining):
   buildable_types = buildable_robot_types(blueprint, collection)
   best_choices = []
   best_collected = init_resource_amounts()
-  collection = add_amounts(collection, robots)
+  # collect for the minute
+  add_amounts(collection, robots)
   for build_resource_type in buildable_types:
     if build_resource_type:
-      robots = update_amounts(robots, build_resource_type, 1)
-      collection = subtract_amounts(collection, blueprint[build_resource_type].cost)
+      # robots = update_amounts(robots, build_resource_type, 1)
+      robots[build_resource_type.value] += 1
+      subtract_amounts(collection, blueprint[build_resource_type].cost)
     choices, collected = run(blueprint, robots, collection, total_minutes, minutes_remaining - 1)
     if greater_than(collected, best_collected):
       best_choices = [build_resource_type] + choices
-      best_collected = collected
+      best_collected = collected.copy()
+    # restore for next run
+    if build_resource_type:
+      robots[build_resource_type.value] -= 1
+      add_amounts(collection, blueprint[build_resource_type].cost)
   update_cache(robots, collection, minutes_remaining, best_choices, best_collected)
   return best_choices, best_collected
 
 
 def init_resource_amounts():
-  return 0, 0, 0, 0
+  return [0, 0, 0, 0]
 
 
 def print_choices(choices, blueprint, minutes_remaining):
@@ -167,7 +175,7 @@ def main(file, minutes):
       print(f"\n\n*** Blueprint {blueprint_id} ***")
       for resource in Resource:
         print(f"  Each {resource.name.lower()} robot costs {blueprint[resource].format_cost()}.")
-      robots = (1, 0, 0, 0)
+      robots = [1, 0, 0, 0]
       collection = init_resource_amounts()
       choices, collected = run(blueprint, robots, collection, minutes, minutes)
       print_choices(choices, blueprint, minutes)
