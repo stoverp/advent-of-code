@@ -129,7 +129,7 @@ def print_choices(choices, blueprint, minutes_remaining):
       for resource_type, amount in enumerate(blueprint[build_robot_type].cost):
         collection[resource_type] -= amount
       if build_robot_type == Resource.GEODE:
-        print(f"Spend {blueprint['geode'].format_cost()} to start building a geode-cracking robot.")
+        print(f"Spend {blueprint[Resource.GEODE].format_cost()} to start building a geode-cracking robot.")
       else:
         print(f"Spend {blueprint[build_robot_type].format_cost()} to start building a {build_robot_type.name.lower()}-collecting robot.")
     for resource_type, n_robots in enumerate(robots):
@@ -171,10 +171,11 @@ def main(file, minutes):
       collection = init_resource_amounts()
       choices, collected = run(blueprint, robots, collection, minutes, minutes)
       print_choices(choices, blueprint, minutes)
-      print(f"\ntotal branches examined: {Global.total_branches}")
-      print(f"choices: {choices}")
+      print(f"\nchoices: {choices}")
+      print(f"final collection: {collected}")
       print(f"cache hits: {Global.cache_hits}")
       print(f"cache misses: {Global.cache_misses}")
+      print(f"total branches examined: {Global.total_branches}")
       return
 
 
