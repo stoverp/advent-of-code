@@ -126,7 +126,6 @@ def main(file):
   print("\nFirst attempt at resolved monkeys:")
   resolve_monkeys(monkeys, dependees, queue)
   print_monkeys(monkeys)
-  print()
   # now we should have resolved one side of root, let's look up the other side
   equate(monkeys)
   print(f"\nfinal human state: {monkeys['humn']}")
