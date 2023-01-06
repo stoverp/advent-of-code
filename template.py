@@ -18,4 +18,4 @@ if __name__ == "__main__":
   args = parser.parse_args()
   start_time = time.time()
   main(args.file)
-  print("--- COMPLETED IN %s SECONDS ---" % (time.time() - start_time))
+  print("\n--- COMPLETED IN %s SECONDS ---" % (time.time() - start_time))
