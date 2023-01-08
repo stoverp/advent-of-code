@@ -6,7 +6,7 @@ def main(file):
   with open(file, "r") as f:
     for line in f:
       print(line.strip())
-      if match := re.match("<REGEX>$", line):
+      if match := re.match(r"<REGEX>$", line):
         print(f"<group 1>: {match.group(1)}")
       else:
         raise Exception(f"invalid input line: {line}")
