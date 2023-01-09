@@ -154,6 +154,7 @@ def bfs(start_state, dest_pos):
   queue = [start_state]
   parent = dict()
   visited = set()
+  max_distance = 0
   while queue:
     state = queue.pop(0)
     if state.position == dest_pos:
@@ -162,6 +163,9 @@ def bfs(start_state, dest_pos):
     for next_position, description in adjacent(state.position, next_blizzards):
       next_state = BoardState(next_position, next_blizzards, description)
       if next_state not in visited:
+        if next_state.position[0] + next_state.position[1] > max_distance:
+          max_distance = next_state.position[0] + next_state.position[1]
+          print(f"furthest position evaluated: {next_state.position}")
         visited.add(next_state)
         parent[next_state] = state
         queue.append(next_state)
