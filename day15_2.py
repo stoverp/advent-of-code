@@ -53,7 +53,7 @@ def old_merge_ranges(all_ranges, new_range):
     return [new_range]
   overlap_start = 0
   while overlap_start < len(all_ranges) and all_ranges[overlap_start][1] < new_range[0]:
-    # if new range doesn't overlap current range, keep going to find start of overlap
+    # if new range doesn't overlap current range, keep going to find start_pos of overlap
     overlap_start += 1
   overlap_end = overlap_start
   while overlap_end < len(all_ranges) and all_ranges[overlap_end][1] < new_range[1]:

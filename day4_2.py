@@ -10,7 +10,7 @@ def main(file):
         elf1_range, elf2_range = (int(match.group(1)), int(match.group(2))), (int(match.group(3)), int(match.group(4)))
         print(elf1_range, elf2_range)
         if elf2_range[0] < elf1_range[0]:
-          # swap elves to sort ranges by start
+          # swap elves to sort ranges by start_pos
           elf2_range, elf1_range = elf1_range, elf2_range
         if elf1_range[1] >= elf2_range[0]:
           print("ranges overlap")

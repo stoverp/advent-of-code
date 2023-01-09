@@ -27,11 +27,11 @@ def read_stacks(f):
 
 
 def execute_move(line, stacks):
-  if match := re.match("move (?P<count>\d+) from (?P<name>\d+) to (?P<dest>\d+)", line):
+  if match := re.match("move (?P<count>\d+) from (?P<name>\d+) to (?P<dest_pos>\d+)", line):
     print(line.rstrip())
     count = int(match.group("count"))
     source_stack = int(match.group("name"))
-    dest_stack = int(match.group("dest"))
+    dest_stack = int(match.group("dest_pos"))
     stacks[dest_stack] = stacks[source_stack][:count] + stacks[dest_stack]
     stacks[source_stack] = stacks[source_stack][count:]
     print_stacks(stacks)
