@@ -4,6 +4,33 @@ from argparse import ArgumentParser
 from dataclasses import dataclass, asdict, astuple
 from enum import Enum
 
+class Global:
+  n_states_searched: int = 0
+  ub_cache: dict = dict()
+  ub_cache_hits: int = 0
+  ub_cache_reads: int = 0
+  # lb_cache: dict = dict()
+  # lb_cache_hits: int = 0
+  # lb_cache_reads: int = 0
+
+  @classmethod
+  def read_ub_cache(cls, key):
+    cls.ub_cache_reads += 1
+    if key in cls.ub_cache:
+      cls.ub_cache_hits += 1
+      return cls.ub_cache[key]
+    else:
+      return None
+
+  # @classmethod
+  # def read_lb_cache(cls, key):
+  #   cls.lb_cache_reads += 1
+  #   if key in cls.lb_cache:
+  #     cls.lb_cache_hits += 1
+  #     return cls.lb_cache[key]
+  #   else:
+  #     return None
+
 
 class Resource(Enum):
   ORE = 0
@@ -31,6 +58,9 @@ class MaterialSet:
   def __sub__(self, other):
     return MaterialSet(*[a - b for a, b in zip(astuple(self), astuple(other))])
 
+  def __mul__(self, other: int):
+    return MaterialSet(*[a * other for a in astuple(self)])
+
   def __le__(self, other):
     return all(a <= b for a, b in zip(astuple(self), astuple(other)))
 
@@ -49,6 +79,10 @@ class MaterialSet:
       d.get(Resource.GEODE, 0)
     )
 
+  @classmethod
+  def from_resource(cls, resource, amount):
+    return cls.from_dict({resource: amount})
+
 
 @dataclass(frozen=True)
 class State:
@@ -59,7 +93,7 @@ class State:
   parent: 'State'
 
 
-def read_blueprints(file):
+def read_blueprints(file: str):
   blueprints = dict()
   with open(file, "r") as f:
     for line in f:
@@ -83,46 +117,85 @@ def read_blueprints(file):
   return blueprints
 
 
-def print_blueprint(id, blueprint):
+def print_blueprint(id: int, blueprint: dict):
   print(f"\n\n*** Blueprint {id} ***")
   for resource in Resource:
     print(f"  Each {resource.name.lower()} robot costs {blueprint[resource].format_cost()}.")
 
 
-def find_max_geodes(blueprint, minutes):
-  best_state = None
+def upper_bound_materials(candidate: State, blueprint: dict) -> MaterialSet:
+  materials, robots, minutes_remaining = candidate.materials, candidate.robots, candidate.minutes_remaining
+  cache_key = (astuple(materials), astuple(robots), minutes_remaining)
+  if cached_materials := Global.read_ub_cache(cache_key):
+    return cached_materials
+  for t in range(candidate.minutes_remaining):
+    materials += robots
+    # can we buy a robot, starting with most valuable?
+    for resource in reversed(Resource):
+      if blueprint[resource] <= materials:
+        # for upper bound, don't pay the cost
+        robots = robots + MaterialSet.from_resource(resource, 1)
+        break
+  Global.ub_cache[cache_key] = materials
+  return materials
+
+
+def lower_bound_materials(state: State) -> MaterialSet:
+  # materials, robots, minutes_remaining = candidate.materials, candidate.robots, candidate.minutes_remaining
+  # cache_key = (astuple(materials), astuple(robots), minutes_remaining)
+  # if cached_materials := Global.read_lb_cache(cache_key):
+  #   return cached_materials
+  # materials += robots * minutes_remaining
+  # Global.lb_cache[cache_key] = materials
+  # return materials
+  return state.materials + (state.robots * state.minutes_remaining)
+
+
+def find_max_geodes(blueprint: dict, minutes: int) -> State:
+  # best_final_materials = None
+  best_final_state: State = None
   initial_state = State(MaterialSet(), MaterialSet(ore=1), None, minutes, None)
   queue = [initial_state]
   while queue:
     state = queue.pop(0)
+    # lb_materials = lower_bound_materials(state)
+    # if not best_final_materials or lb_materials.obsidian >= best_final_materials.obsidian:
+    #   # the lower-bound of materials collected by the current state is better than what we've found so far
+    #   best_final_materials = lb_materials
+    #   # hopefully on the last step, this will contain the correct parent
+    #   best_final_state = state
+    if not best_final_state or best_final_state.materials.obsidian < state.materials.obsidian:
+      best_final_state = state
     minutes_remaining = state.minutes_remaining - 1
-    if minutes_remaining == 0:
-      # if best_state and state.materials.geode > best_state.materials.geode:
-      if not best_state or state.materials.obsidian > best_state.materials.obsidian:
-        best_state = state
-    else:
+    if minutes_remaining > 0:
       # consider state with no robots built
-      queue.append(State(
+      candidates = [State(
         state.materials + state.robots,
         state.robots,
         None,
         minutes_remaining,
         state
-      ))
+      )]
       # consider states with each type of robot built (if affordable)
       for robot_type in Resource:
         if blueprint[robot_type] <= state.materials:
-          queue.append(State(
+          candidates.append(State(
             state.materials + state.robots - blueprint[robot_type],
-            state.robots + MaterialSet.from_dict({robot_type: 1}),
+            state.robots + MaterialSet.from_resource(robot_type, 1),
             robot_type,
             minutes_remaining,
             state
           ))
-  return best_state
+      for candidate in candidates:
+        ub_materials = upper_bound_materials(candidate, blueprint)
+        if best_final_state and best_final_state.materials <= ub_materials:
+          # the upper-bound of what this state can collect at least as good as what we've found already
+          Global.n_states_searched += 1
+          queue.append(candidate)
+  return best_final_state
 
 
-def path(final_state):
+def path(final_state: State) -> list[State]:
   path = []
   state = final_state
   while state:
@@ -131,7 +204,7 @@ def path(final_state):
   return list(reversed(path))
 
 
-def main(file, minutes):
+def main(file: str, minutes: int):
   blueprints = read_blueprints(file)
   # DEBUG: first blueprint only
   blueprint = blueprints[1]
@@ -150,11 +223,13 @@ def main(file, minutes):
     for resource, amount in asdict(robots).items():
       if amount == 0:
         continue
-      print(f"{amount} {resource}-collecting robot{'s' if amount > 1 else ''} collect{'' if amount > 1 else 's'} {amount} {resource}; you now have {materials[resource]} {resource}")
+      print(f"{amount} {resource}-collecting robot{'s' if amount > 1 else ''} collect{'' if amount > 1 else 's'} {amount} {resource}; you now have {materials[resource]} {resource}.")
     if state.built_robot_type:
-      robots = robots + MaterialSet.from_dict({state.built_robot_type: 1})
+      robots = robots + MaterialSet.from_resource(state.built_robot_type, 1)
       print(f"The new {state.built_robot_type}-collecting robot is ready; you now have {robots[state.built_robot_type]} of them.")
     minute += 1
+  print(f"\nSearched {Global.n_states_searched} states.")
+  print(f"UB cache reads: {Global.ub_cache_reads}. UB cache hits: {Global.ub_cache_hits}.")
 
 
 if __name__ == "__main__":
