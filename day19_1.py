@@ -132,10 +132,10 @@ def print_blueprint(id: int, blueprint: dict):
 
 def upper_bound(state: State, blueprint: dict) -> int:
   materials, robots, minutes_remaining = state.materials, state.robots, state.minutes_remaining
-  cache_key = (materials.data, robots.data, minutes_remaining)
-  if cached_result := Global.read_ub_cache(cache_key):
-    return cached_result
-  for t in range(state.minutes_remaining):
+  # cache_key = (materials.data, robots.data, minutes_remaining)
+  # if cached_result := Global.read_ub_cache(cache_key):
+  #   return cached_result
+  for _ in range(state.minutes_remaining):
     materials += robots
     # can we buy a robot, starting with most valuable?
     for resource in reversed(Resource):
@@ -143,15 +143,15 @@ def upper_bound(state: State, blueprint: dict) -> int:
         # for upper bound, don't pay the cost
         robots = robots.add_one_resource(resource)
         break
-  Global.ub_cache[cache_key] = materials.geode
+  # Global.ub_cache[cache_key] = materials.geode
   return materials.geode
 
 
 def lower_bound(state: State, blueprint: dict) -> int:
   materials, robots, minutes_remaining = state.materials, state.robots, state.minutes_remaining
-  cache_key = (materials.data, robots.data, minutes_remaining)
-  if cached_materials := Global.read_lb_cache(cache_key):
-    return cached_materials
+  # cache_key = (materials.data, robots.data, minutes_remaining)
+  # if cached_materials := Global.read_lb_cache(cache_key):
+  #   return cached_materials
   geode_cost = blueprint[Resource.GEODE]
   for _ in range(state.minutes_remaining):
     if geode_cost <= materials:
@@ -160,7 +160,7 @@ def lower_bound(state: State, blueprint: dict) -> int:
       robots = robots.add_one_resource(Resource.GEODE)
     else:
       materials += robots
-  Global.lb_cache[cache_key] = materials.geode
+  # Global.lb_cache[cache_key] = materials.geode
   return materials.geode
 
 
@@ -269,7 +269,7 @@ def trace(final_state, blueprint, minutes_remaining):
       print(f"The new {built_robot}-collecting robot is ready; you now have {robots[built_robot]} of them.")
     minute += 1
   print(f"\nSearched {Global.n_states_searched} states.")
-  print(f"UB cache reads: {Global.ub_cache_reads}. UB cache hits: {Global.ub_cache_hits}.")
+  # print(f"UB cache reads: {Global.ub_cache_reads}. UB cache hits: {Global.ub_cache_hits}.")
 
 
 def main(file: str, minutes: int):
@@ -283,24 +283,6 @@ def main(file: str, minutes: int):
     print(f"\nresult: {result}")
 
 
-def test_state(materials, robots, minutes_remaining=0):
-  return State(materials, robots, None, minutes_remaining, None)
-
-
-def test_prune_strictly_worse():
-  queue = [
-    test_state(MaterialSet(ore=1), MaterialSet()),
-    test_state(MaterialSet(), MaterialSet(ore=1)),
-    test_state(MaterialSet(), MaterialSet()),
-    test_state(MaterialSet(), MaterialSet()),
-    test_state(MaterialSet(), MaterialSet(clay=2)),
-    test_state(MaterialSet(), MaterialSet(clay=1)),
-    test_state(MaterialSet(), MaterialSet(clay=1), minutes_remaining=2),
-  ]
-  queue = prune_strictly_worse(queue)
-  PrettyPrinter().pprint(queue)
-
-
 if __name__ == "__main__":
   parser = ArgumentParser()
   parser.add_argument("file")
@@ -308,5 +290,4 @@ if __name__ == "__main__":
   args = parser.parse_args()
   start_time = time.time()
   main(args.file, args.minutes)
-  # test_prune_strictly_worse()
   print("--- COMPLETED IN %s SECONDS ---" % (time.time() - start_time))
