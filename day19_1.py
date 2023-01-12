@@ -180,6 +180,17 @@ def prune_strictly_worse(states):
       good_states.append(state)
   return good_states
 
+
+def consider(queue, state):
+  for queued_state in reversed(queue):
+    if queued_state.minutes_remaining != state.minutes_remaining:
+      # only consider states at the back of the queue with equivalent minutes remaining
+      break
+    if state.materials <= queued_state.materials and state.robots <= queued_state.robots:
+      return
+  queue.append(state)
+
+
 def find_max_geodes(blueprint: dict, minutes: int):
   Global.lb_cache = dict()
   Global.ub_cache = dict()
@@ -201,7 +212,7 @@ def find_max_geodes(blueprint: dict, minutes: int):
     else:
       minutes_remaining = state.minutes_remaining - 1
       # consider state with no robots built
-      queue.append(State(
+      consider(queue, State(
         state.materials + state.robots,
         state.robots,
         None,
@@ -214,7 +225,7 @@ def find_max_geodes(blueprint: dict, minutes: int):
           # we already have enough ore to build anything, no need to create an ore robot
           continue
         elif blueprint[robot_type] <= state.materials:
-          queue.append(State(
+          consider(queue, State(
             state.materials + state.robots - blueprint[robot_type],
             state.robots.add_one_resource(robot_type),
             robot_type,
@@ -239,7 +250,7 @@ def trace(final_state, blueprint, minutes_remaining):
   materials = MaterialSet()
   robots = MaterialSet(ore=1)
   for minute in range(1, minutes_remaining + 1):
-    print(f"== Minute {minute} ==")
+    print(f"\n== Minute {minute} ==")
     built_robot = None
     if minute < len(state_path):
       built_robot = state_path[minute].built_robot_type
