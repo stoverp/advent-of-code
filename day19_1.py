@@ -1,9 +1,8 @@
 import re
 import time
 from argparse import ArgumentParser
-from dataclasses import dataclass, asdict, astuple
+from dataclasses import dataclass, asdict
 from enum import Enum
-from pprint import PrettyPrinter
 
 
 class Global:
@@ -96,7 +95,6 @@ class State:
   materials: MaterialSet
   robots: MaterialSet
   built_robot_type: Resource
-  minutes_remaining: int
   parent: 'State'
 
 
@@ -130,12 +128,12 @@ def print_blueprint(id: int, blueprint: dict):
     print(f"  Each {resource.name.lower()} robot costs {blueprint[resource].format_cost()}.")
 
 
-def upper_bound(state: State, blueprint: dict) -> int:
-  materials, robots, minutes_remaining = state.materials, state.robots, state.minutes_remaining
-  # cache_key = (materials.data, robots.data, minutes_remaining)
-  # if cached_result := Global.read_ub_cache(cache_key):
-  #   return cached_result
-  for _ in range(state.minutes_remaining):
+def upper_bound(state: State, blueprint: dict, minutes_left: int) -> int:
+  materials, robots = state.materials, state.robots
+  cache_key = (materials.data, robots.data)
+  if cached_result := Global.read_ub_cache(cache_key):
+    return cached_result
+  for _ in range(minutes_left):
     materials += robots
     # can we buy a robot, starting with most valuable?
     for resource in reversed(Resource):
@@ -143,24 +141,24 @@ def upper_bound(state: State, blueprint: dict) -> int:
         # for upper bound, don't pay the cost
         robots = robots.add_one_resource(resource)
         break
-  # Global.ub_cache[cache_key] = materials.geode
+  Global.ub_cache[cache_key] = materials.geode
   return materials.geode
 
 
-def lower_bound(state: State, blueprint: dict) -> int:
-  materials, robots, minutes_remaining = state.materials, state.robots, state.minutes_remaining
-  # cache_key = (materials.data, robots.data, minutes_remaining)
-  # if cached_materials := Global.read_lb_cache(cache_key):
-  #   return cached_materials
+def lower_bound(state: State, blueprint: dict, minutes_left: int) -> int:
+  materials, robots = state.materials, state.robots
+  cache_key = (materials.data, robots.data)
+  if cached_materials := Global.read_lb_cache(cache_key):
+    return cached_materials
   geode_cost = blueprint[Resource.GEODE]
-  for _ in range(state.minutes_remaining):
+  for _ in range(minutes_left):
     if geode_cost <= materials:
       materials -= geode_cost
       materials += robots
       robots = robots.add_one_resource(Resource.GEODE)
     else:
       materials += robots
-  # Global.lb_cache[cache_key] = materials.geode
+  Global.lb_cache[cache_key] = materials.geode
   return materials.geode
 
 
@@ -168,9 +166,7 @@ def prune_strictly_worse(states):
   good_states = []
   for state in states:
     strictly_worse = False
-    for other_state in states[:1000]:
-      if state.minutes_remaining != other_state.minutes_remaining:
-        continue
+    for other_state in states:
       if state.materials == other_state.materials and state.robots == other_state.robots:
         continue
       if state.materials <= other_state.materials and state.robots <= other_state.robots:
@@ -181,58 +177,43 @@ def prune_strictly_worse(states):
   return good_states
 
 
-def consider(queue, state):
-  for queued_state in reversed(queue):
-    if queued_state.minutes_remaining != state.minutes_remaining:
-      # only consider states at the back of the queue with equivalent minutes remaining
-      break
-    if state.materials <= queued_state.materials and state.robots <= queued_state.robots:
-      return
-  queue.append(state)
-
-
 def find_max_geodes(blueprint: dict, minutes: int):
   Global.lb_cache = dict()
   Global.ub_cache = dict()
   max_ore_cost = max(cost.ore for cost in blueprint.values())
   best_result = 0
   best_final_state: State = None
-  initial_state = State(MaterialSet(), MaterialSet(ore=1), None, minutes, None)
-  queue = [initial_state]
-  while queue:
-    state = queue.pop(0)
-    Global.n_states_searched += 1
-    if (lb := lower_bound(state, blueprint)) > best_result:
-      best_result = lb
-      best_final_state = state
-    if state.minutes_remaining == 0:
-      continue
-    elif upper_bound(state, blueprint) <= best_result:
-      continue
-    else:
-      minutes_remaining = state.minutes_remaining - 1
+  initial_state = State(MaterialSet(), MaterialSet(ore=1), None, None)
+  next_states = [initial_state]
+  for t in range(minutes + 1):
+    current_states = prune_strictly_worse(next_states)
+    next_states = []
+    for state in current_states:
+      Global.n_states_searched += 1
+      if (lb := lower_bound(state, blueprint, minutes - t)) > best_result:
+        best_result = lb
+        best_final_state = state
+      if upper_bound(state, blueprint, minutes - t) <= best_result:
+        continue
       # consider state with no robots built
-      consider(queue, State(
+      next_states.append(State(
         state.materials + state.robots,
         state.robots,
         None,
-        minutes_remaining,
         state
       ))
       # consider states with each type of robot built (if affordable)
       for robot_type in Resource:
-        if robot_type == Resource.ORE and state.materials.ore >= max_ore_cost:
+        if robot_type == Resource.ORE and state.robots.ore >= max_ore_cost:
           # we already have enough ore to build anything, no need to create an ore robot
           continue
-        elif blueprint[robot_type] <= state.materials:
-          consider(queue, State(
+        if blueprint[robot_type] <= state.materials:
+          next_states.append(State(
             state.materials + state.robots - blueprint[robot_type],
             state.robots.add_one_resource(robot_type),
             robot_type,
-            minutes_remaining,
             state
           ))
-      queue = prune_strictly_worse(queue)
   return best_result, best_final_state
 
 
@@ -269,18 +250,21 @@ def trace(final_state, blueprint, minutes_remaining):
       print(f"The new {built_robot}-collecting robot is ready; you now have {robots[built_robot]} of them.")
     minute += 1
   print(f"\nSearched {Global.n_states_searched} states.")
-  # print(f"UB cache reads: {Global.ub_cache_reads}. UB cache hits: {Global.ub_cache_hits}.")
+  print(f"UB cache reads: {Global.ub_cache_reads}. UB cache hits: {Global.ub_cache_hits}.")
 
 
 def main(file: str, minutes: int):
   blueprints = read_blueprints(file)
+  # blueprints = {2: blueprints[2]}
+  total = 0
   for id, blueprint in blueprints.items():
-    # id = 2
     blueprint = blueprints[id]
     print_blueprint(id, blueprint)
     result, final_state = find_max_geodes(blueprint, minutes)
-    trace(final_state, blueprint, minutes)
+    # trace(final_state, blueprint, minutes)
     print(f"\nresult: {result}")
+    total += id * result
+  print(f"\nfinal total: {total}")
 
 
 if __name__ == "__main__":
