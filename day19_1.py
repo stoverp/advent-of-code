@@ -3,6 +3,8 @@ import time
 from argparse import ArgumentParser
 from dataclasses import dataclass, asdict, astuple
 from enum import Enum
+from pprint import PrettyPrinter
+
 
 class Global:
   n_states_searched: int = 0
@@ -66,6 +68,12 @@ class MaterialSet:
 
   def __le__(self, other):
     return all(a <= b for a, b in zip(self.data, other.data))
+
+  def __getitem__(self, item):
+    return getattr(self, str(item))
+
+  def __hash__(self):
+    return hash(self.data)
 
   def format_cost(self):
     return " and ".join(f"{amount} {attr}" for attr, amount in asdict(self).items() if amount > 0)
@@ -145,7 +153,7 @@ def lower_bound(state: State, blueprint: dict) -> int:
   if cached_materials := Global.read_lb_cache(cache_key):
     return cached_materials
   geode_cost = blueprint[Resource.GEODE]
-  for t in range(state.minutes_remaining):
+  for _ in range(state.minutes_remaining):
     if geode_cost <= materials:
       materials -= geode_cost
       materials += robots
@@ -156,12 +164,28 @@ def lower_bound(state: State, blueprint: dict) -> int:
   return materials.geode
 
 
+def prune_strictly_worse(states):
+  good_states = []
+  for state in states:
+    strictly_worse = False
+    for other_state in states[:1000]:
+      if state.minutes_remaining != other_state.minutes_remaining:
+        continue
+      if state.materials == other_state.materials and state.robots == other_state.robots:
+        continue
+      if state.materials <= other_state.materials and state.robots <= other_state.robots:
+        strictly_worse = True
+        break
+    if not strictly_worse:
+      good_states.append(state)
+  return good_states
+
 def find_max_geodes(blueprint: dict, minutes: int):
   Global.lb_cache = dict()
   Global.ub_cache = dict()
   max_ore_cost = max(cost.ore for cost in blueprint.values())
   best_result = 0
-  # best_final_state: State = None
+  best_final_state: State = None
   initial_state = State(MaterialSet(), MaterialSet(ore=1), None, minutes, None)
   queue = [initial_state]
   while queue:
@@ -169,11 +193,13 @@ def find_max_geodes(blueprint: dict, minutes: int):
     Global.n_states_searched += 1
     if (lb := lower_bound(state, blueprint)) > best_result:
       best_result = lb
-      # best_final_state = state
-    if upper_bound(state, blueprint) <= best_result:
+      best_final_state = state
+    if state.minutes_remaining == 0:
       continue
-    minutes_remaining = state.minutes_remaining - 1
-    if minutes_remaining > 0:
+    elif upper_bound(state, blueprint) <= best_result:
+      continue
+    else:
+      minutes_remaining = state.minutes_remaining - 1
       # consider state with no robots built
       queue.append(State(
         state.materials + state.robots,
@@ -195,7 +221,8 @@ def find_max_geodes(blueprint: dict, minutes: int):
             minutes_remaining,
             state
           ))
-  return best_result  #, best_final_state
+      queue = prune_strictly_worse(queue)
+  return best_result, best_final_state
 
 
 def path(final_state: State) -> list[State]:
@@ -207,24 +234,28 @@ def path(final_state: State) -> list[State]:
   return list(reversed(path))
 
 
-def trace(final_state, blueprint):
+def trace(final_state, blueprint, minutes_remaining):
   state_path = path(final_state)
-  minute = 1
   materials = MaterialSet()
   robots = MaterialSet(ore=1)
-  for state in state_path:
+  for minute in range(1, minutes_remaining + 1):
     print(f"== Minute {minute} ==")
-    if state.built_robot_type:
-      materials = materials - blueprint[state.built_robot_type]
-      print(f"Spend {blueprint[state.built_robot_type].format_cost()} to start building a {state.built_robot_type.name.lower()}-collecting robot.")
+    built_robot = None
+    if minute < len(state_path):
+      built_robot = state_path[minute].built_robot_type
+    elif blueprint[Resource.GEODE] <= materials:
+      built_robot = Resource.GEODE
+    if built_robot:
+      materials = materials - blueprint[built_robot]
+      print(f"Spend {blueprint[built_robot].format_cost()} to start building a {built_robot}-collecting robot.")
     materials = materials + robots
     for resource, amount in asdict(robots).items():
       if amount == 0:
         continue
       print(f"{amount} {resource}-collecting robot{'s' if amount > 1 else ''} collect{'' if amount > 1 else 's'} {amount} {resource}; you now have {materials[resource]} {resource}.")
-    if state.built_robot_type:
-      robots = robots.add_one_resource(state.built_robot_type)
-      print(f"The new {state.built_robot_type}-collecting robot is ready; you now have {robots[state.built_robot_type]} of them.")
+    if built_robot:
+      robots = robots.add_one_resource(built_robot)
+      print(f"The new {built_robot}-collecting robot is ready; you now have {robots[built_robot]} of them.")
     minute += 1
   print(f"\nSearched {Global.n_states_searched} states.")
   print(f"UB cache reads: {Global.ub_cache_reads}. UB cache hits: {Global.ub_cache_hits}.")
@@ -232,13 +263,31 @@ def trace(final_state, blueprint):
 
 def main(file: str, minutes: int):
   blueprints = read_blueprints(file)
-  # for id, blueprint in blueprints.items():
-  id = 1
-  blueprint = blueprints[id]
-  print_blueprint(id, blueprint)
-  result = find_max_geodes(blueprint, minutes)
-  print(f"result: {result}")
-  # trace(final_state, blueprint)
+  for id, blueprint in blueprints.items():
+    # id = 2
+    blueprint = blueprints[id]
+    print_blueprint(id, blueprint)
+    result, final_state = find_max_geodes(blueprint, minutes)
+    trace(final_state, blueprint, minutes)
+    print(f"\nresult: {result}")
+
+
+def test_state(materials, robots, minutes_remaining=0):
+  return State(materials, robots, None, minutes_remaining, None)
+
+
+def test_prune_strictly_worse():
+  queue = [
+    test_state(MaterialSet(ore=1), MaterialSet()),
+    test_state(MaterialSet(), MaterialSet(ore=1)),
+    test_state(MaterialSet(), MaterialSet()),
+    test_state(MaterialSet(), MaterialSet()),
+    test_state(MaterialSet(), MaterialSet(clay=2)),
+    test_state(MaterialSet(), MaterialSet(clay=1)),
+    test_state(MaterialSet(), MaterialSet(clay=1), minutes_remaining=2),
+  ]
+  queue = prune_strictly_worse(queue)
+  PrettyPrinter().pprint(queue)
 
 
 if __name__ == "__main__":
@@ -248,4 +297,5 @@ if __name__ == "__main__":
   args = parser.parse_args()
   start_time = time.time()
   main(args.file, args.minutes)
+  # test_prune_strictly_worse()
   print("--- COMPLETED IN %s SECONDS ---" % (time.time() - start_time))
