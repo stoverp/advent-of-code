@@ -253,9 +253,8 @@ def trace(final_state, blueprint, minutes_remaining):
   print(f"UB cache reads: {Global.ub_cache_reads}. UB cache hits: {Global.ub_cache_hits}.")
 
 
-def main(file: str, minutes: int):
+def part1(file: str, minutes: int):
   blueprints = read_blueprints(file)
-  # blueprints = {2: blueprints[2]}
   total = 0
   for id, blueprint in blueprints.items():
     blueprint = blueprints[id]
@@ -267,11 +266,32 @@ def main(file: str, minutes: int):
   print(f"\nfinal total: {total}")
 
 
+def part2(file: str, minutes: int):
+  blueprints = read_blueprints(file)
+  blueprints = dict((id, blueprints[id]) for id in range(1, 4) if id in blueprints)
+  print(blueprints)
+  total = 1
+  for id, blueprint in blueprints.items():
+    blueprint = blueprints[id]
+    print_blueprint(id, blueprint)
+    result, final_state = find_max_geodes(blueprint, minutes)
+    # trace(final_state, blueprint, minutes)
+    print(f"\nresult: {result}")
+    total *= result
+  print(f"\nfinal total: {total}")
+
+
 if __name__ == "__main__":
   parser = ArgumentParser()
   parser.add_argument("file")
   parser.add_argument("minutes", type=int)
+  parser.add_argument("part", type=int)
   args = parser.parse_args()
   start_time = time.time()
-  main(args.file, args.minutes)
+  if args.part == 1:
+    part1(args.file, args.minutes)
+  elif args.part == 2:
+    part1(args.file, args.minutes)
+  else:
+    raise Exception(f"invalid part: {args.part}")
   print("--- COMPLETED IN %s SECONDS ---" % (time.time() - start_time))
