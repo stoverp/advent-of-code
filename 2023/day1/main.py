@@ -2,15 +2,21 @@ import re
 import time
 from argparse import ArgumentParser
 
+def first_int(chars):
+  for c in chars:
+    if c.isnumeric():
+      return c
+
+
 def main(file):
+  nums = []
   with open(file, "r") as f:
     for line in f:
       print(line.strip())
-      if match := re.match(r"<REGEX>$", line):
-        print(f"<group 1>: {match.group(1)}")
-      else:
-        raise Exception(f"invalid input line: {line}")
-  return -1
+      num = int(first_int(line) + first_int(line[::-1]))
+      print(num)
+      nums.append(num)
+  return sum(nums)
 
 
 if __name__ == "__main__":
