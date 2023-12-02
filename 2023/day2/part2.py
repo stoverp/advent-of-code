@@ -10,7 +10,6 @@ def game(pulls):
     for color_pull in re.split(r"\s*,\s*", pull):
       num_str, color = color_pull.split(" ")
       max_per_color[color] = max(max_per_color[color], int(num_str))
-  print(max_per_color)
   return reduce(lambda x, y: x * y, max_per_color.values())
 
 
@@ -18,12 +17,9 @@ def main(file):
   total = 0
   with open(file, "r") as f:
     for line in f:
-      print(line.strip())
       if match := re.match(r"Game (\d+): (.*)$", line.strip()):
-        game_num = int(match.group(1))
         pulls = re.split(r"\s*;\s*", match.group(2))
         power = game(pulls)
-        print(f"Game {game_num} power: {power}\n")
         total += power
       else:
         raise Exception(f"invalid input line: {line}")
