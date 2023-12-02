@@ -15,7 +15,6 @@ DIGITS = {
 }
 
 PATTERN = re.compile(r"(?=(" + "|".join(DIGITS.keys()) + r"|\d))")
-print(PATTERN)
 
 def first_digit(candidates):
   for c in candidates:
@@ -27,7 +26,6 @@ def first_digit(candidates):
 
 def candidates(string):
   result = re.findall(PATTERN, string)
-  print(result)
   return result
 
 
@@ -35,9 +33,7 @@ def main(file):
   nums = []
   with open(file, "r") as f:
     for line in f:
-      print(line.strip())
       num = int(first_digit(candidates(line)) + first_digit(candidates(line)[::-1]))
-      print(num, "\n")
       nums.append(num)
   return sum(nums)
 

@@ -12,9 +12,7 @@ def main(file):
   nums = []
   with open(file, "r") as f:
     for line in f:
-      print(line.strip())
       num = int(first_int(line) + first_int(line[::-1]))
-      print(num)
       nums.append(num)
   return sum(nums)
 
