@@ -49,7 +49,6 @@ def main(file):
   gear_nearby_nums = defaultdict(set)
   for num_object in nums:
     adj_gears(num_object, gears, gear_nearby_nums)
-  print(gear_nearby_nums)
   for nums in gear_nearby_nums.values():
     if len(nums) == 2:
       total += reduce(lambda x, y: x * y, nums)
