@@ -8,7 +8,6 @@ def read_input(file):
     row = 0
     nums = []
     for line in f:
-      print(line.strip())
       num_chars = []
       start_col, end_col = None, None
       for col, c in enumerate(line):
@@ -43,13 +42,10 @@ def adj(num_object, symbols):
 
 def main(file):
   nums, symbols = read_input(file)
-  print(nums, symbols)
   parts = []
   for num_object in nums:
     if adj(num_object, symbols):
       parts.append(num_object['num'])
-    else:
-      print(f"{num_object['num']} is not adjacent to a symbol")
   return sum(parts)
 
 
