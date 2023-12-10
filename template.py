@@ -2,7 +2,7 @@ import re
 import time
 from argparse import ArgumentParser
 
-def main(file):
+def read_input(file):
   with open(file, "r") as f:
     for line in f:
       print(line.strip())
@@ -10,6 +10,11 @@ def main(file):
         print(f"<group 1>: {match.group(1)}")
       else:
         raise Exception(f"invalid input line: {line}")
+  return -1
+
+
+def main(file):
+  vars = read_input(file)
   return -1
 
 
