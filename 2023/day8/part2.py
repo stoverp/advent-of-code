@@ -2,7 +2,7 @@ import re
 import time
 from argparse import ArgumentParser
 from dataclasses import dataclass
-from functools import reduce
+from math import lcm
 
 
 @dataclass
@@ -29,7 +29,7 @@ def read_input(file):
 
 def main(file):
   instructions, nodes = read_input(file)
-  steps = dict()
+  steps = []
   for location in [name for name in nodes.keys() if name.endswith("A")]:
     num_steps = 0
     while not location.endswith("Z"):
@@ -41,10 +41,8 @@ def main(file):
           location = nodes[location].left
         case "R":
           location = nodes[location].right
-    steps[location] = num_steps
-  cycles = [n / len(instructions) for n in steps.values()]
-  print(cycles)
-  return reduce(lambda x, y: x * y, cycles) * len(instructions)
+    steps.append(num_steps)
+  return lcm(*steps)
 
 
 if __name__ == "__main__":
