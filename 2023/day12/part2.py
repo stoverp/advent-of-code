@@ -3,7 +3,7 @@ import time
 from argparse import ArgumentParser
 
 
-N_COPIES = 1
+N_COPIES = 5
 
 
 def read_input(file):
@@ -19,6 +19,14 @@ def read_input(file):
   return lines
 
 
+cache = {}
+def memoize(f, *params):
+  key = str(params)
+  if key not in cache:
+    cache[key] = f(*params)
+  return cache[key]
+
+
 def num_arrangements(springs, counts, current_count):
   if len(springs) == 0:
     return 1 if len(counts) == 0 or counts == [current_count] else 0
@@ -30,15 +38,15 @@ def num_arrangements(springs, counts, current_count):
   match springs[0]:
     case ".":
       if current_count == 0:
-        return num_arrangements(springs[1:], counts, 0)
+        return memoize(num_arrangements, springs[1:], counts, 0)
       else:
         if current_count != counts[0]:
           return 0
-        return num_arrangements(springs[1:], counts[1:], 0)
+        return memoize(num_arrangements, springs[1:], counts[1:], 0)
     case "#":
-      return num_arrangements(springs[1:], counts, current_count + 1)
+      return memoize(num_arrangements, springs[1:], counts, current_count + 1)
     case "?":
-      return sum(num_arrangements(spring + springs[1:], counts, current_count)
+      return sum(memoize(num_arrangements, spring + springs[1:], counts, current_count)
         for spring in [".", "#"])
 
 
@@ -46,7 +54,7 @@ def main(file):
   lines = read_input(file)
   total = 0
   for line_number, (springs, counts) in enumerate(lines):
-    arrangements = num_arrangements(springs, counts, 0)
+    arrangements = memoize(num_arrangements, springs, counts, 0)
     print(f"line #{line_number + 1}: \n{springs} {counts}\n{arrangements}\n")
     total += arrangements
   return total
