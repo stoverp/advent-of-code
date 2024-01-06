@@ -12,47 +12,41 @@ def read_input(file):
     for line in f:
       if line.startswith("//"):
         continue
-      springs_str, counts_str = line.strip().split(" ")
-      springs = [c for c in "?".join([springs_str] * N_COPIES)]
+      springs, counts_str = line.strip().split(" ")
       print(springs)
       counts = [int(c) for c in counts_str.split(",")]
-      lines.append((springs, counts * N_COPIES))
+      lines.append(("?".join([springs] * N_COPIES), counts * N_COPIES))
   return lines
 
 
-def num_arrangements(springs, position, counts, current_count):
-  if position == len(springs):
+def num_arrangements(springs, counts, current_count):
+  if len(springs) == 0:
     return 1 if len(counts) == 0 or counts == [current_count] else 0
   elif len(counts) == 0:
-    if "#" in springs[position:]:
+    if "#" in springs:
       return 0
     else:
       return 1
-  match springs[position]:
+  match springs[0]:
     case ".":
       if current_count == 0:
-        return num_arrangements(springs, position + 1, counts, 0)
+        return num_arrangements(springs[1:], counts, 0)
       else:
         if current_count != counts[0]:
           return 0
-        return num_arrangements(springs, position + 1, counts[1:], 0)
+        return num_arrangements(springs[1:], counts[1:], 0)
     case "#":
-      return num_arrangements(springs, position + 1, counts, current_count + 1)
+      return num_arrangements(springs[1:], counts, current_count + 1)
     case "?":
-      total = 0
-      for spring in [".", "#"]:
-        springs[position] = spring
-        n = num_arrangements(springs, position, counts, current_count)
-        total += n
-      springs[position] = "?"
-      return total
+      return sum(num_arrangements(spring + springs[1:], counts, current_count)
+        for spring in [".", "#"])
 
 
 def main(file):
   lines = read_input(file)
   total = 0
   for line_number, (springs, counts) in enumerate(lines):
-    arrangements = num_arrangements(springs, 0, counts, 0)
+    arrangements = num_arrangements(springs, counts, 0)
     print(f"line #{line_number + 1}: \n{springs} {counts}\n{arrangements}\n")
     total += arrangements
   return total
