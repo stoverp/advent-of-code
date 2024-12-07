@@ -4,6 +4,16 @@ from argparse import ArgumentParser
 from numbers import Number
 
 
+def is_safe_dampened(numbers):
+  if is_safe(numbers):
+    return True
+  for i in range(len(numbers)):
+    short_numbers = numbers[0:i] + numbers[i+1:]
+    if is_safe(short_numbers):
+      return True
+  return False
+
+
 def is_safe(numbers):
   direction = None
   last_n = None
@@ -26,11 +36,12 @@ def main(file):
   with open(file, "r") as f:
     for line in f:
       numbers = [int(n) for n in re.split(r"\s+", line.strip())]
-      print(numbers)
-      print(is_safe(numbers))
-      if is_safe(numbers):
+      safe = is_safe_dampened(numbers)
+      if safe:
         safe_count += 1
+      print(numbers, safe)
   return safe_count
+
 
 if __name__ == "__main__":
   parser = ArgumentParser()
