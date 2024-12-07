@@ -16,7 +16,6 @@ def read_input(file):
   rows = []
   with open(file, "r") as f:
     for line in f:
-      print(line.strip())
       if not line.strip():
         grids.append(rows)
         rows = []
@@ -32,7 +31,7 @@ def scan(maze):
     left = maze[i + 1 - size:i + 1]
     right = maze[i + size:i:-1]
     if left == right:
-      return i
+      return i + 1
   return None
 
 
@@ -42,27 +41,29 @@ def print_grid(rows):
 
 
 def all_smudges(original_rows):
-  index, dir = find_mirror(original_rows)
-  mirror_size = min(index + 1, (len(original_rows) if dir == "row" else len(original_rows[0])) - index - 1)
-  mirror_range = range(index + 1 - mirror_size, index + mirror_size)
-  rows = original_rows.copy()
-  for smudge_row in mirror_range if dir == "row" else range(len(rows)):
-    for smudge_col in mirror_range if dir == "col" else range(len(rows[0])):
-      fixed_char = "#" if rows[smudge_row][smudge_col] == "." else "."
-      rows[smudge_row] = rows[smudge_row][:smudge_col] + fixed_char + rows[smudge_row][smudge_col + 1:]
-      index, dir = find_mirror(rows)
-      if index is not None:
-        print_grid(rows)
-        return (index + 1) * (100 if dir == "row" else 1), (smudge_row, smudge_col)
-      rows = original_rows.copy()
+  original_index = find_mirror(original_rows)
+  cleaned_rows = original_rows.copy()
+  for smudge_row in range(len(cleaned_rows)):
+    for smudge_col in range(len(cleaned_rows[0])):
+      fixed_char = "#" if cleaned_rows[smudge_row][smudge_col] == "." else "."
+      cleaned_rows[smudge_row] = cleaned_rows[smudge_row][:smudge_col] + fixed_char + \
+                                 cleaned_rows[smudge_row][smudge_col + 1:]
+      index = find_mirror(cleaned_rows)
+      if index is not None and index != original_index:
+        print_grid(cleaned_rows)
+        return index, (smudge_row, smudge_col)
+      cleaned_rows = original_rows.copy()
 
 
 def find_mirror(rows):
   columns = find_columns(rows)
+  index = scan(columns)
+  if index is not None:
+    return index
   index = scan(rows)
   if index is not None:
-    return index, "row"
-  return scan(columns), "col"
+    return index * 100
+  return None
 
 
 def main(file):
