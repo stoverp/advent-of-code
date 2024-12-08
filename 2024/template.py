@@ -2,6 +2,7 @@ import re
 import time
 from argparse import ArgumentParser
 
+
 def read(file):
   with open(file, "r") as f:
     for line in f:
