@@ -23,12 +23,6 @@ def print_disk(disk):
   print("".join(str(n) for n in disk))
 
 
-def first_index(disk, val):
-  for i, c in enumerate(disk):
-    if c == val:
-      return i
-
-
 def checksum(disk):
   total = 0
   for i, n in enumerate(disk):
