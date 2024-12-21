@@ -9,7 +9,7 @@ def combine(expression, operands):
   if not expression:
     return combine(operands[0], operands[1:])
   results = []
-  for operator in ["+", "*"]:
+  for operator in ["+", "*", "||"]:
     results.extend(combine(f"{expression} {operator} {operands[0]}", operands[1:]))
   return results
 
@@ -20,7 +20,13 @@ def evaluate(expression):
   operator = None
   for piece in pieces:
     if piece.isnumeric():
-      total = total * int(piece) if operator == "*" else total + int(piece)
+      match operator:
+        case "*":
+          total = total * int(piece)
+        case "||":
+          total = int(str(total) + piece)
+        case _:
+          total = total + int(piece)
     else:
       operator = piece
   return total
