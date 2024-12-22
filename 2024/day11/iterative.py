@@ -1,7 +1,6 @@
 import re
 import time
 from argparse import ArgumentParser
-from functools import cache
 
 
 def read(file):
@@ -11,27 +10,25 @@ def read(file):
       return stones
 
 
-@cache
-def iterate(stone, times):
-  if times == 0:
-    return 1
+def iterate(stone):
   if stone == 0:
-    return iterate(1, times - 1)
+    return [1]
   digits = str(stone)
   if len(digits) % 2 == 0:
     midpoint = len(digits) // 2
-    return iterate(int(digits[0:midpoint]), times - 1) + \
-      iterate(int(digits[midpoint:]), times - 1)
-  return iterate(stone * 2024, times - 1)
+    return [int(digits[0:midpoint]), int(digits[midpoint:])]
+  return [stone * 2024]
 
 
 def main(file, times):
   stones = read(file)
   print(stones)
-  total = 0
-  for stone in stones:
-    total += iterate(stone, times)
-  return total
+  for _ in range(times):
+    next_stones = []
+    for stone in stones:
+      next_stones.extend(iterate(stone))
+    stones = next_stones
+  return len(stones)
 
 
 if __name__ == "__main__":
