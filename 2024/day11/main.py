@@ -12,7 +12,7 @@ def read(file):
 
 def iterate(stone, times):
   if times == 0:
-    return [stone]
+    return 1
   if stone == 0:
     return iterate(1, times - 1)
   digits = str(stone)
@@ -26,11 +26,10 @@ def iterate(stone, times):
 def main(file, times):
   stones = read(file)
   print(stones)
-  result = []
+  total = 0
   for stone in stones:
-    result.extend(iterate(stone, times))
-  print(result)
-  return len(result)
+    total += iterate(stone, times)
+  return total
 
 
 if __name__ == "__main__":
