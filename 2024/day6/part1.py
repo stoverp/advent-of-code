@@ -64,12 +64,7 @@ def print_lab(obstacles, guard, positions, num_rows, num_cols):
 
 def main(file):
   obstacles, guard, num_rows, num_cols = read(file)
-  print(obstacles)
-  print(guard)
-  print(num_rows, num_cols)
   positions = set()
-  # print_lab(obstacles, guard, positions, num_rows, num_cols)
-  # input()
   while 0 <= guard.row < num_rows and 0 <= guard.col < num_cols:
     positions.add((guard.row, guard.col))
     next_position = guard.next_pos()
@@ -77,9 +72,6 @@ def main(file):
       guard.turn()
     else:
       guard.row, guard.col = next_position
-    # print_lab(obstacles, guard, positions, num_rows, num_cols)
-    # input()
-  print(positions)
   return len(positions)
 
 

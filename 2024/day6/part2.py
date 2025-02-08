@@ -1,4 +1,3 @@
-import re
 import time
 from argparse import ArgumentParser
 from enum import Enum
@@ -68,8 +67,6 @@ def print_lab(obstacles, new_obstacle, guard, positions, num_rows, num_cols):
 
 def is_guard_stuck(obstacles, guard, num_rows, num_cols):
   positions = set()
-  # print_lab(obstacles, guard, positions, num_rows, num_cols)
-  # input()
   while 0 <= guard.row < num_rows and 0 <= guard.col < num_cols:
     positions.add((guard.dir, guard.row, guard.col))
     next_position = guard.next_pos()
@@ -79,28 +76,19 @@ def is_guard_stuck(obstacles, guard, num_rows, num_cols):
       guard.turn()
     else:
       guard.row, guard.col = next_position
-    # print_lab(obstacles, guard, positions, num_rows, num_cols)
-    # input()
   return False
 
 
 def main(file):
   obstacles, starting_guard, num_rows, num_cols = read(file)
-  # print(obstacles)
-  # print(guard)
-  # print(num_rows, num_cols)
   total = 0
   for row in range(num_rows):
     for col in range(num_cols):
-      print(row, col)
       if (row, col) not in obstacles:
         guard = copy(starting_guard)
         new_obstacle = (row, col)
         if is_guard_stuck(obstacles | {new_obstacle}, guard, num_rows, num_cols):
           total += 1
-          # print(row, col, "STUCK")
-          # print_lab(obstacles, new_obstacle, guard, set(), num_rows, num_cols)
-          # print()
   return total
 
 
