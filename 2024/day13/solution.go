@@ -31,10 +31,10 @@ func parseFloat(s []byte) float64 {
 }
 
 func isInt(v float64) bool {
-	return math.Abs(float64(math.Round(v))-v) < 1e-5
+	return math.Abs(float64(math.Round(v))-v) < 1e-2
 }
 
-func read(filename string) []Machine {
+func read(filename string, prizeCoordOffset int64) []Machine {
 	file, err := os.Open(filename)
 	if err != nil {
 		panic(err)
@@ -46,26 +46,22 @@ func read(filename string) []Machine {
 
 	scanner := bufio.NewScanner(file)
 	buttonRe := regexp.MustCompile(`Button ([AB]): X\+(\d+), Y\+(\d+)`)
-	// prizeRe := regexp.MustCompile(`Prize: X=(\d+), Y=(\d+)`)
 	prizeRe := regexp.MustCompile(`Prize: X=(\d+), Y=(\d+)`)
 	for scanner.Scan() {
 		line := scanner.Text()
-		// fmt.Println(line)
 		matches := buttonRe.FindSubmatch([]byte(line))
 		if len(matches) > 0 {
-			// fmt.Printf("%q\n", matches[1:])
 			buttons = append(buttons, Coord{x: parseFloat(matches[2]), y: parseFloat(matches[3])})
 		} else {
 			matches := prizeRe.FindSubmatch([]byte(line))
-			// fmt.Printf("%q\n", matches)
 			if len(matches) > 0 {
 				machines = append(machines,
 					Machine{
 						aButton: buttons[0],
 						bButton: buttons[1],
 						prizeCoord: Coord{
-							x: parseFloat(matches[1]),
-							y: parseFloat(matches[2]),
+							x: parseFloat(matches[1]) + float64(prizeCoordOffset),
+							y: parseFloat(matches[2]) + float64(prizeCoordOffset),
 						},
 					})
 				buttons = []Coord{}
@@ -80,9 +76,10 @@ func read(filename string) []Machine {
 	return machines
 }
 
-func run() int {
-	machines := read(os.Args[1])
+func run(filename string, prizeCoordOffset int64) int {
+	machines := read(filename, prizeCoordOffset)
 	total := 0
+	numGoodMachines := 0
 	for _, machine := range machines {
 		fmt.Println(machine)
 		bPresses := (machine.prizeCoord.y - machine.prizeCoord.x*machine.aButton.y/machine.aButton.x) /
@@ -91,18 +88,25 @@ func run() int {
 		fmt.Println(aPresses, bPresses)
 		if isInt(aPresses) && isInt(bPresses) {
 			fmt.Println("it works!")
+			numGoodMachines += 1
 			total += int(3*math.Round(aPresses) + math.Round(bPresses))
 		} else {
 			fmt.Println("does not work")
 		}
 		fmt.Println()
 	}
+	fmt.Printf("there were %d good machines out of %d\n\n", numGoodMachines, len(machines))
 	return total
 }
 
 func main() {
 	startTime := time.Now()
-	fmt.Println("RESULT:", run())
+	filename := os.Args[1]
+	prizeCoordOffset, err := strconv.ParseInt(os.Args[2], 10, 64)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("RESULT:", run(filename, prizeCoordOffset))
 	elapsed := time.Since(startTime)
 	fmt.Println("completed in", elapsed.Seconds(), "seconds")
 }
